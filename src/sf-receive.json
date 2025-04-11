@@ -1,0 +1,32 @@
+{
+    "Comment": "A Step Function to handle CloudWatch alarms",
+    "StartAt": "LogEvent",
+    "States": {
+      "LogEvent": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:LogEventFunction",
+        "Next": "LockEvent"
+      },
+      "LockEvent": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:LockEventFunction",
+        "Next": "WaitForUnlock"
+      },
+      "WaitForUnlock": {
+        "Type": "Wait",
+        "SecondsPath": "$.timeout_seconds",
+        "Next": "UnlockEvent"
+      },
+      "UnlockEvent": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:UnlockEventFunction",
+        "Next": "Notify"
+      },
+      "Notify": {
+        "Type": "Task",
+        "Resource": "arn:aws:lambda:REGION:ACCOUNT_ID:function:NotifyFunction",
+        "End": true
+      }
+    }
+  }
+  
