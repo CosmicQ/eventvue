@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+import boto3
+
+def toggle_cloudwatch_alarm_status(cloudformation_stack_name, cloudformation_output_key):
+    """
+    Queries AWS CloudFormation for an alarm name from a template output,
+    toggles its status (OK <-> ALARM), and prints the change.
+
+    Args:
+        cloudformation_stack_name (str): The name of the CloudFormation stack.
+        cloudformation_output_key (str): The key of the output variable in
+                                         the CloudFormation stack that contains
+                                         the CloudWatch alarm name.
+    """
+    cf_client = boto3.client('cloudformation')
+    cw_client = boto3.client('cloudwatch')
+
+    alarm_name = None
+    old_status = None
+    new_status = None
+
+    try:
+        # 1. Get CloudFormation Stack Outputs
+        print(f"Attempting to describe CloudFormation stack: {cloudformation_stack_name}")
+        response = cf_client.describe_stacks(StackName=cloudformation_stack_name)
+        stack_outputs = response['Stacks'][0]['Outputs']
+
+        # 2. Extract Alarm Name
+        for output in stack_outputs:
+            if output['OutputKey'] == cloudformation_output_key:
+                alarm_name = output['OutputValue']
+                print(f"Found alarm name '{alarm_name}' from CloudFormation output key '{cloudformation_output_key}'.")
+                break
+
+        if not alarm_name:
+            print(f"Error: CloudFormation output key '{cloudformation_output_key}' not found in stack '{cloudformation_stack_name}'.")
+            return
+
+        # 3. Get Current Alarm Status
+        print(f"Getting current status of alarm: {alarm_name}")
+        alarm_description = cw_client.describe_alarms(AlarmNames=[alarm_name])
+        if not alarm_description['MetricAlarms']:
+            print(f"Error: Alarm '{alarm_name}' not found in CloudWatch.")
+            return
+
+        old_status = alarm_description['MetricAlarms'][0]['StateValue']
+        print(f"Current alarm status: {old_status}")
+
+        # 4. Toggle Alarm Status
+        if old_status == 'OK':
+            new_status = 'ALARM'
+            print(f"Setting alarm '{alarm_name}' to ALARM state.")
+            cw_client.set_alarm_state(
+                AlarmName=alarm_name,
+                StateReason='Toggling alarm state from OK to ALARM via script',
+                StateValue='ALARM'
+            )
+        elif old_status == 'ALARM':
+            new_status = 'OK'
+            print(f"Setting alarm '{alarm_name}' to OK state.")
+            cw_client.set_alarm_state(
+                AlarmName=alarm_name,
+                StateReason='Toggling alarm state from ALARM to OK via script',
+                StateValue='OK'
+            )
+        elif old_status == 'INSUFFICIENT_DATA':
+            print(f"Alarm is in INSUFFICIENT_DATA state. Cannot directly toggle to a specific state from INSUFFICIENT_DATA. Attempting to set to ALARM. If it doesn't change, manually check conditions.")
+            new_status = 'ALARM' # Or 'OK', depending on desired default action for insufficient data
+            cw_client.set_alarm_state(
+                AlarmName=alarm_name,
+                StateReason='Attempting to set from INSUFFICIENT_DATA to ALARM via script',
+                StateValue='ALARM'
+            )
+        else:
+            print(f"Unsupported alarm state: {old_status}. No action taken.")
+            return
+
+        # 5. Verify and Print Status Change (optional, but good for confirmation)
+        # Give AWS a moment to propagate the change
+        import time
+        time.sleep(2)
+        updated_alarm_description = cw_client.describe_alarms(AlarmNames=[alarm_name])
+        actual_new_status = updated_alarm_description['MetricAlarms'][0]['StateValue']
+
+
+        print(f"changed status from {old_status} to {actual_new_status}")
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+# --- Configuration ---
+# REPLACE THESE WITH YOUR ACTUAL CLOUDFORMATION STACK NAME AND OUTPUT KEY
+CLOUDFORMATION_STACK_NAME = 'qtest' # Example: 'WebServerMonitoring'
+CLOUDFORMATION_ALARM_OUTPUT_KEY = 'EventVueCloudWatchAlarmName' # Example: 'CPUAlarmName' or 'MyApplicationAlarm'
+
+# --- Run the script ---
+if __name__ == "__main__":
+    toggle_cloudwatch_alarm_status(CLOUDFORMATION_STACK_NAME, CLOUDFORMATION_ALARM_OUTPUT_KEY)

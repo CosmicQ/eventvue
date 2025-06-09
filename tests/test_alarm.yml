@@ -1,0 +1,117 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template for a simple test CloudWatch alarm for EventVue, with an EventBridge rule and Log Group.
+
+Parameters:
+  EventVueAlarmName:
+    Type: String
+    Description: Name of the CloudWatch Alarm for EventVue.
+    Default: EventVueTestAlarm
+  EventVueAlarmDescription:
+    Type: String
+    Description: Description for the EventVue CloudWatch Alarm.
+    Default: A simple test alarm for EventVue for manual state changes.
+  EventVueMetricNamespace:
+    Type: String
+    Description: The namespace for the custom metric the EventVue alarm will monitor.
+    Default: EventVue/AppMetrics
+  EventVueMetricName:
+    Type: String
+    Description: The name of the custom metric the EventVue alarm will monitor.
+    Default: TestValue
+  EventVueAlarmThreshold:
+    Type: Number
+    Description: The threshold value for the EventVue alarm. The alarm will go into ALARM state if the metric is greater than this value.
+    Default: 1
+
+Resources:
+  # CloudWatch Alarm resource for EventVue
+  EventVueTestMetricAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Ref EventVueAlarmName
+      AlarmDescription: !Ref EventVueAlarmDescription
+      MetricName: !Ref EventVueMetricName
+      Namespace: !Ref EventVueMetricNamespace
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: !Ref EventVueAlarmThreshold
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      ActionsEnabled: false # Actions are disabled as no SNS topic is used, alarm state changes will trigger EventBridge
+      Tags:
+        - Key: Project
+          Value: EventVue
+        - Key: Environment
+          Value: Test
+
+  # CloudWatch Log Group for EventVue EventBridge rule target
+  EventVueAlarmTestLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/events/eventvue_alarm_test # Keeping the previously requested log group name
+      RetentionInDays: 7
+      Tags:
+        - Key: Project
+          Value: EventVue
+        - Key: Environment
+          Value: Test
+
+  # IAM Role for EventBridge to send EventVue events to Log Group
+  # This role is for EventBridge to assume, but generally not needed when targeting a LogGroup directly from a Rule.
+  # It's kept here in case you expand to other targets like Lambda functions where a role is necessary.
+  EventVueEventsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: EventVueEventBridgeLogGroupPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !GetAtt EventVueAlarmTestLogGroup.Arn
+      Tags:
+        - Key: Project
+          Value: EventVue
+        - Key: Environment
+          Value: Test
+
+  # EventBridge Rule to capture EventVue CloudWatch Alarm state changes
+  EventVueAlarmStateChangeRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "EventVue rule to capture state changes for the EventVueTestAlarm"
+      EventBusName: default
+      EventPattern:
+        source:
+          - "aws.cloudwatch"
+        detail-type:
+          - "CloudWatch Alarm State Change"
+        resources:
+          - !GetAtt EventVueTestMetricAlarm.Arn
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt EventVueAlarmTestLogGroup.Arn
+          Id: "EventVueAlarmTestLogGroupTarget"
+          # Removed RoleArn as it's not supported for direct LogGroup targets from EventBridge Rule
+Outputs:
+  EventVueCloudWatchAlarmName:
+    Description: The name of the created EventVue CloudWatch Alarm.
+    Value: !Ref EventVueAlarmName
+  EventVueEventBridgeRuleArn:
+    Description: The ARN of the EventBridge rule that triggers on EventVue alarm state changes.
+    Value: !GetAtt EventVueAlarmStateChangeRule.Arn
+  EventVueEventTestLogGroupName:
+    Description: The name of the CloudWatch Log Group receiving EventVue alarm events.
+    Value: !Ref EventVueAlarmTestLogGroup
