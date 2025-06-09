@@ -90,7 +90,7 @@ def toggle_cloudwatch_alarm_status(cloudformation_stack_name, cloudformation_out
 
 # --- Configuration ---
 # REPLACE THESE WITH YOUR ACTUAL CLOUDFORMATION STACK NAME AND OUTPUT KEY
-CLOUDFORMATION_STACK_NAME = 'qtest' # Example: 'WebServerMonitoring'
+CLOUDFORMATION_STACK_NAME = 'EventVueTest' # Example: 'EventVueTest'
 CLOUDFORMATION_ALARM_OUTPUT_KEY = 'EventVueCloudWatchAlarmName' # Example: 'CPUAlarmName' or 'MyApplicationAlarm'
 
 # --- Run the script ---

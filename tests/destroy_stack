@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+which aws
+if [ $? -ne 0 ]; then
+    echo "AWS CLI is not installed or not in the PATH"
+    exit 1  
+fi
+
+aws cloudformation delete-stack --stack-name EventVueTest
