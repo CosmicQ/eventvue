@@ -65,7 +65,7 @@ def toggle_cloudwatch_alarm_status(cloudformation_stack_name, cloudformation_out
             )
         elif old_status == 'INSUFFICIENT_DATA':
             print(f"Alarm is in INSUFFICIENT_DATA state. Cannot directly toggle to a specific state from INSUFFICIENT_DATA. Attempting to set to ALARM. If it doesn't change, manually check conditions.")
-            new_status = 'ALARM' # Or 'OK', depending on desired default action for insufficient data
+            new_status = 'ALARM'
             cw_client.set_alarm_state(
                 AlarmName=alarm_name,
                 StateReason='Attempting to set from INSUFFICIENT_DATA to ALARM via script',
@@ -89,9 +89,9 @@ def toggle_cloudwatch_alarm_status(cloudformation_stack_name, cloudformation_out
         print(f"An error occurred: {e}")
 
 # --- Configuration ---
-# REPLACE THESE WITH YOUR ACTUAL CLOUDFORMATION STACK NAME AND OUTPUT KEY
-CLOUDFORMATION_STACK_NAME = 'EventVueTest' # Example: 'EventVueTest'
-CLOUDFORMATION_ALARM_OUTPUT_KEY = 'EventVueCloudWatchAlarmName' # Example: 'CPUAlarmName' or 'MyApplicationAlarm'
+# Leave these defaults for best results
+CLOUDFORMATION_STACK_NAME = 'EventVueTest'
+CLOUDFORMATION_ALARM_OUTPUT_KEY = 'EventVueCloudWatchAlarmName'
 
 # --- Run the script ---
 if __name__ == "__main__":

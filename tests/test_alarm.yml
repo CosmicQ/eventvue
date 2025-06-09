@@ -38,7 +38,7 @@ Resources:
       Threshold: !Ref EventVueAlarmThreshold
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
-      ActionsEnabled: false # Actions are disabled as no SNS topic is used, alarm state changes will trigger EventBridge
+      ActionsEnabled: false
       Tags:
         - Key: Project
           Value: EventVue
@@ -49,7 +49,7 @@ Resources:
   EventVueAlarmTestLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /aws/events/eventvue_alarm_test # Keeping the previously requested log group name
+      LogGroupName: /aws/events/eventvue_alarm_test
       RetentionInDays: 7
       Tags:
         - Key: Project
@@ -58,8 +58,6 @@ Resources:
           Value: Test
 
   # IAM Role for EventBridge to send EventVue events to Log Group
-  # This role is for EventBridge to assume, but generally not needed when targeting a LogGroup directly from a Rule.
-  # It's kept here in case you expand to other targets like Lambda functions where a role is necessary.
   EventVueEventsRole:
     Type: AWS::IAM::Role
     Properties:
@@ -104,7 +102,6 @@ Resources:
       Targets:
         - Arn: !GetAtt EventVueAlarmTestLogGroup.Arn
           Id: "EventVueAlarmTestLogGroupTarget"
-          # Removed RoleArn as it's not supported for direct LogGroup targets from EventBridge Rule
 Outputs:
   EventVueCloudWatchAlarmName:
     Description: The name of the created EventVue CloudWatch Alarm.
